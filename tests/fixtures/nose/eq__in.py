@@ -8,3 +8,7 @@ class TestEq(TestCase):
         eq_(True, True)
         eq_(None, None)
         eq_(False, False)
+
+    def test_multiline(self):
+        eq_(foo('bar',
+                a=b), 3615)

@@ -8,3 +8,6 @@ class TestEq(TestCase):
         assert True is True
         assert None is None
         assert False is False
+
+    def test_multiline(self):
+        assert foo('bar', a=b) == 3615

@@ -10,6 +10,19 @@ import re
 import unittest
 
 
+def strip_newlines(node):
+    # This is probably stupid but there are tools that are capable
+    # of fixing this a lot better than we ever could do here so we're just
+    # stripping weird and customized indentation and be happy about it.
+    if isinstance(node, Node) and node.children:
+        for child in node.children:
+            if isinstance(child, Node):
+                strip_newlines(child)
+
+            if '\n' in child.prefix:
+                child.prefix = ' '
+
+
 class FixNose(BaseFix):
     PATTERN = """
     power< func='eq_'
@@ -46,15 +59,22 @@ class FixNose(BaseFix):
 
         if len(posargs) == 2:
             left, right = posargs
-            left.prefix = " "
-            right.prefix = " "
+        elif len(posargs) == 3:
+            left, right, _ = posargs
 
-            if right.value in ('None', 'True', 'False'):
-                op = Name('is', prefix=' ')
-                body = [Node(syms.comparison, (left, op, right))]
-            else:
-                op = Name('==', prefix=' ')
-                body = [Node(syms.comparison, (left, op, right))]
+        left.prefix = " "
+        right.prefix = " "
+
+        strip_newlines(left)
+        strip_newlines(right)
+
+        # Ignore customized assert messages for now
+        if isinstance(right, Leaf) and right.value in ('None', 'True', 'False'):
+            op = Name('is', prefix=' ')
+            body = [Node(syms.comparison, (left, op, right))]
+        else:
+            op = Name('==', prefix=' ')
+            body = [Node(syms.comparison, (left, op, right))]
 
         indent = find_indentation(node)
 
