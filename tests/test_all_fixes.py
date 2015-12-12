@@ -46,7 +46,11 @@ FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'fixtures')
 
 def requiredTestMethod(name):
     # skip if TestCase does not have this method
-    is_missing = getattr(unittest.TestCase, name, None) is None
+    is_missing = False
+
+    if name.startswith('assert'):
+        is_missing = getattr(unittest.TestCase, name, None) is None
+
     return pytest.mark.skipif(is_missing,
                               reason="unittest does not have TestCase.%s " % name)
 
