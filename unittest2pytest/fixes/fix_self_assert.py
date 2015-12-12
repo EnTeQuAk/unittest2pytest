@@ -31,8 +31,7 @@ from lib2to3.fixer_base import BaseFix
 from lib2to3.fixer_util import (
     Comma, Name, Call, Node, Leaf,
     Newline, KeywordArg, find_indentation,
-    ArgList, String, Number, syms, token,
-    touch_import)
+    ArgList, String, Number, syms, token)
 
 from functools import partial
 import re
@@ -340,7 +339,5 @@ class FixSelfAssert(BaseFix):
         if argsdict.get('msg', None) is not None:
             n_stmt.children.extend((Name(','), argsdict['msg']))
         n_stmt.prefix = node.prefix
-
-        touch_import(None, 'pytest', node)
 
         return n_stmt

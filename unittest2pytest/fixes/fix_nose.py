@@ -9,58 +9,6 @@ from functools import partial
 import re
 import unittest
 
-from .. import utils
-
-
-TEMPLATE_PATTERN = re.compile('[\1\2]|[^\1\2]+')
-
-def CompOp(op, left, right, kws):
-    op = Name(op, prefix=" ")
-    left.prefix = ""
-    right.prefix = " "
-
-    if getattr(right, 'value', '') in ('None', 'True', 'False') and op.value == '==':
-        return CompOp('is', left, right, kws)
-
-    return Node(syms.comparison, (left, op, right))
-
-
-def fill_template(template, *args):
-    parts = TEMPLATE_PATTERN.findall(template)
-    kids = []
-    for p in parts:
-        if p == '':
-            continue
-        elif p in '\1\2\3\4\5':
-            p = args[ord(p)-1]
-            p.prefix = ''
-        else:
-            p = Name(p)
-        kids.append(p)
-    return kids
-
-def DualOp(template, first, second, kws):
-    kids = fill_template(template, first, second)
-    return Node(syms.test, kids, prefix=" ")
-
-
-def UnaryOp(prefix, postfix, value, kws):
-    kids = []
-    if prefix:
-        kids.append(Name(prefix))
-    value.prefix = " "
-    kids.append(value)
-    if postfix:
-        kids.append(Name(postfix))
-    return Node(syms.test, kids)
-
-
-_method_map = {
-    # simple ones
-    'eq_':         partial(DualOp, 're.search(\1, \2)'),
-#    'ok_':         partial(UnaryOp, '', ''),
-}
-
 
 class FixNose(BaseFix):
     PATTERN = """
@@ -85,37 +33,34 @@ class FixNose(BaseFix):
                 assert not kwargs, 'all positional args are assumed to come first'
                 posargs.append(arg.clone())
 
-        method = results['func'].value
+        func = results['func'].value
 
         posargs = []
-        kwargs = {}
+        kwargs = []
 
-        # This is either a "arglist" or a single argument
         if results['arglist'].type == syms.arglist:
             for arg in results['arglist'].children:
                 process_arg(arg)
         else:
             process_arg(results['arglist'])
 
-        import nose.tools
+        if len(posargs) == 2:
+            left, right = posargs
+            left.prefix = " "
+            right.prefix = " "
 
-        test_func = getattr(nose.tools, method)
+            if right.value in ('None', 'True', 'False'):
+                op = Name('is', prefix=' ')
+                body = [Node(syms.comparison, (left, op, right))]
+            else:
+                op = Name('==', prefix=' ')
+                body = [Node(syms.comparison, (left, op, right))]
 
-        required_args, argsdict = utils.resolve_func_args(test_func, posargs, kwargs)
+        indent = find_indentation(node)
 
-        replacement = [Name('assert'), _method_map[method](*required_args, kws=argsdict)]
+        ret = Name('assert')
 
-        if results['arglist'].next_sibling and results['arglist'].next_sibling.type == token.NEWLINE:
-            # The eq_ statement goes over multiple lines, wrap it in ()
-            replacement.insert(1, Name(' ('))
-            replacement.append(Name(')'))
+        if node.parent.prefix.endswith(indent):
+            ret.prefix = indent
 
-        stmt = Node(syms.assert_stmt, replacement)
-
-        if argsdict.get('msg', None) is not None:
-            stmt.children.extend((Name(','), argsdict['msg']))
-        stmt.prefix = node.prefix
-        return stmt
-
-
-print(FixNose.PATTERN)
+        return [ret] + body
