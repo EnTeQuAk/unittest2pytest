@@ -11,3 +11,6 @@ class TestEq(TestCase):
 
     def test_multiline(self):
         assert foo('bar', a=b) == 3615
+
+    def test_custom_assert(self):
+        return True is True

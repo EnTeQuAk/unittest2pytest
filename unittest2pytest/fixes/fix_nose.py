@@ -48,6 +48,14 @@ class FixNose(BaseFix):
 
         func = results['func'].value
 
+        custom_helper = False
+
+        if node.parent.type == syms.return_stmt:
+            # custom helper with `return eq_(...)`
+            # We're not rendering the `assert` in that case
+            # to allow the code to continue functioning
+            custom_helper = True
+
         posargs = []
         kwargs = []
 
@@ -82,5 +90,8 @@ class FixNose(BaseFix):
 
         if node.parent.prefix.endswith(indent):
             ret.prefix = indent
+
+        if custom_helper:
+            return body
 
         return [ret] + body
